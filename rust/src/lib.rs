@@ -51,14 +51,25 @@ pub extern "C" fn program_derived_address(
 }
 
 #[no_mangle]
-pub extern "C" fn associated_token_account(
-    keypair_path: *const libc::c_char,
-    selector: *const libc::c_char,
-) -> *const libc::c_char {
+pub extern "C" fn address(keypair_path: *const libc::c_char) -> *const libc::c_char {
     // Get the wallet address.
     let buf_name = unsafe { CStr::from_ptr(keypair_path).to_bytes() };
     let keypair_path = String::from_utf8(buf_name.to_vec()).unwrap();
     let wallet = read_keypair_file(&keypair_path).unwrap();
+
+    CString::new(wallet.pubkey().to_string())
+        .unwrap()
+        .into_raw()
+}
+
+#[no_mangle]
+pub extern "C" fn associated_token_account(
+    wallet_address: *const libc::c_char,
+    selector: *const libc::c_char,
+) -> *const libc::c_char {
+    let buf_name = unsafe { CStr::from_ptr(wallet_address).to_bytes() };
+    let account_str = String::from_utf8(buf_name.to_vec()).unwrap();
+    let account = Pubkey::from_str(&account_str).unwrap();
 
     // Get selector hash.
     let buf_name = unsafe { CStr::from_ptr(selector).to_bytes() };
@@ -71,7 +82,7 @@ pub extern "C" fn associated_token_account(
     let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &gateway::id());
 
     // Derive the associated token account.
-    let recipient = get_associated_token_address(&wallet.pubkey(), &token_mint_id);
+    let recipient = get_associated_token_address(&account, &token_mint_id);
 
     CString::new(recipient.to_string()).unwrap().into_raw()
 }
