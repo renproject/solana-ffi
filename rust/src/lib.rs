@@ -51,6 +51,32 @@ pub extern "C" fn program_derived_address(
 }
 
 #[no_mangle]
+pub extern "C" fn associated_token_account(
+    keypair_path: *const libc::c_char,
+    selector: *const libc::c_char,
+) -> *const libc::c_char {
+    // Get the wallet address.
+    let buf_name = unsafe { CStr::from_ptr(keypair_path).to_bytes() };
+    let keypair_path = String::from_utf8(buf_name.to_vec()).unwrap();
+    let wallet = read_keypair_file(&keypair_path).unwrap();
+
+    // Get selector hash.
+    let buf_name = unsafe { CStr::from_ptr(selector).to_bytes() };
+    let selector = String::from_utf8(buf_name.to_vec()).unwrap();
+    let mut hasher = sha3::Keccak256::new();
+    hasher.update(selector.as_bytes());
+    let selector_hash: [u8; 32] = hasher.finalize().into();
+
+    // Derived address that will be the token mint.
+    let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &gateway::id());
+
+    // Derive the associated token account.
+    let recipient = get_associated_token_address(&wallet.pubkey(), &token_mint_id);
+
+    CString::new(recipient.to_string()).unwrap().into_raw()
+}
+
+#[no_mangle]
 pub extern "C" fn gateway_initialize(
     keypair_path: *const libc::c_char,
     rpc_url: *const libc::c_char,
