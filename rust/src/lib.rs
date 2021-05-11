@@ -241,6 +241,8 @@ pub extern "C" fn gateway_mint(
     authority_secret: *const libc::c_char,
     selector: *const libc::c_char,
     amount: libc::c_ulonglong,
+    nhash_pointer: *const u8,
+    phash_pointer: *const u8,
 ) -> *const libc::c_char {
     // Solana default signer and fee payer.
     let buf_name = unsafe { CStr::from_ptr(keypair_path).to_bytes() };
@@ -282,10 +284,23 @@ pub extern "C" fn gateway_mint(
     let associated_token_account = get_associated_token_address(&payer.pubkey(), &token_mint_id);
 
     // Construct RenVM mint message and sign it.
+    let phash_slice = unsafe {
+        std::slice::from_raw_parts(phash_pointer as *const u8, 32)
+    };
+    let nhash_slice = unsafe {
+        std::slice::from_raw_parts(nhash_pointer as *const u8, 32)
+    };
+    let mut phash = [0u8; 32usize];
+    let mut nhash = [0u8; 32usize];
+    &phash[..32].clone_from_slice(phash_slice);
+    &nhash[..32].clone_from_slice(nhash_slice);
+    
     let renvm_mint_msg = RenVmMsgBuilder::default()
         .amount(amount)
         .to(associated_token_account.to_bytes())
         .s_hash(selector_hash)
+        .p_hash(phash)
+        .n_hash(nhash)
         .build()
         .unwrap();
     let msg_hash = renvm_mint_msg.get_digest().unwrap();
