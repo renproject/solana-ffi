@@ -14,6 +14,7 @@ $(DEPS): .install-solana-ffi  ;
 
 clean:
 	rm -rf $(DEPS) .install-solana-ffi
+	rm -rf ./rust/target/release/build/solana-ffi-*
 	rm -rf cgo/*.go
 	rm -rf cgo/*.h
 	rm -rf cgo/*.a
