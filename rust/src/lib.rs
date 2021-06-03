@@ -144,6 +144,7 @@ pub extern "C" fn gateway_initialize(
             &token_mint_id,
             &spl_token::id(),
             selector_hash,
+            8u8,
         )
         .unwrap()],
         Some(&payer.pubkey()),
