@@ -24,6 +24,8 @@ use std::{
 
 mod util;
 
+const DEFAULT_DECIMALS: u8 = 8u8;
+
 #[no_mangle]
 pub extern "C" fn unique_pubkey() -> *const libc::c_char {
     let pubkey = Pubkey::new_unique();
@@ -144,7 +146,7 @@ pub extern "C" fn gateway_initialize(
             &token_mint_id,
             &spl_token::id(),
             selector_hash,
-            8u8,
+            DEFAULT_DECIMALS,
         )
         .unwrap()],
         Some(&payer.pubkey()),
@@ -405,7 +407,7 @@ pub extern "C" fn gateway_burn(
                 &payer.pubkey(),
                 &[],
                 burn_amount,
-                9u8,
+                DEFAULT_DECIMALS,
             )
             .unwrap(),
             burn(
