@@ -49,7 +49,7 @@ pub fn mint_secp_instruction(
         sig_r: *sig_r,
         sig_s: *sig_s,
         sig_v: sig_v - 27,
-        msg: msg,
+        msg,
     };
     let packed_data = secp256k1_instruction_data.pack();
     instruction_data[data_start..total_size].copy_from_slice(packed_data.as_slice());
@@ -85,7 +85,7 @@ pub fn encode_msg(
     let mut encoded_msg = vec![0u8; RENVM_MINT_MESSAGE_SIZE];
     let msg = RenVmMintMessage {
         p_hash: *p_hash,
-        amount: amount,
+        amount,
         selector_hash: *shash,
         to: *to,
         n_hash: *n_hash,
