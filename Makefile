@@ -13,7 +13,6 @@ $(DEPS): .install-solana-ffi  ;
 	@touch $@
 
 clean:
-	rm -rf ./rust/target/release/build/solana-ffi-*
 	rm -rf $(DEPS) .install-solana-ffi
 	rm -rf ./rust/target/release/build/solana-ffi-*
 	rm -rf cgo/*.go
