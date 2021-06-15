@@ -8,6 +8,7 @@ use solana_sdk::{
         SecpSignatureOffsets, HASHED_PUBKEY_SERIALIZED_SIZE, SIGNATURE_OFFSETS_SERIALIZED_SIZE,
     },
 };
+use spl_math::uint::U256;
 
 /// Constructs a Secp256k1 instruction for RenVM mint to be verified by Solana Secp256k1 program.
 pub fn mint_secp_instruction(
@@ -76,7 +77,7 @@ pub fn mint_secp_instruction(
 
 /// ABI-encode the values for creating the signature hash.
 pub fn encode_msg(
-    amount: u64,
+    amount: &[u8; 32],
     shash: &[u8; 32],
     to: &[u8; 32],
     p_hash: &[u8; 32],
@@ -85,7 +86,7 @@ pub fn encode_msg(
     let mut encoded_msg = vec![0u8; RENVM_MINT_MESSAGE_SIZE];
     let msg = RenVmMintMessage {
         p_hash: *p_hash,
-        amount,
+        amount: U256::from_big_endian(&amount[..]),
         selector_hash: *shash,
         to: *to,
         n_hash: *n_hash,

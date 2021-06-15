@@ -6,7 +6,7 @@ use gateway::{
     instruction::{burn, initialize, mint},
     state::{Gateway, GATEWAY_STATE_CURRENT_SEED},
 };
-use renvm_sig::{RenVM, RenVmMsgBuilder};
+use renvm_sig::{RenVm, RenVmMsgBuilder};
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -16,6 +16,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use spl_associated_token_account::{create_associated_token_account, get_associated_token_address};
+use spl_math::uint::U256;
 use spl_token::instruction::burn_checked;
 use std::{
     ffi::{CStr, CString},
@@ -113,7 +114,7 @@ pub extern "C" fn gateway_initialize(
         .unwrap()
         .value;
 
-    // Construct the RenVM authority 20-bytes Ethereum compatible address.
+    // Construct the RenVm authority 20-bytes Ethereum compatible address.
     let authority_slice =
         unsafe { std::slice::from_raw_parts(authority_pointer as *const u8, 20usize) };
     let mut authority = [0u8; 20usize];
@@ -146,6 +147,7 @@ pub extern "C" fn gateway_initialize(
             &token_mint_id,
             &spl_token::id(),
             selector_hash,
+            DEFAULT_DECIMALS,
             DEFAULT_DECIMALS,
         )
         .unwrap()],
@@ -257,10 +259,10 @@ pub extern "C" fn gateway_mint(
     let keypair_path = String::from_utf8(buf_name.to_vec()).unwrap();
     let payer = read_keypair_file(&keypair_path).unwrap();
 
-    // RenVM authority secret.
+    // RenVm authority secret.
     let buf_name = unsafe { CStr::from_ptr(authority_secret).to_bytes() };
     let authority_secret = String::from_utf8(buf_name.to_vec()).unwrap();
-    let renvm = RenVM::from_str(&authority_secret).unwrap();
+    let renvm = RenVm::from_str(&authority_secret).unwrap();
     let renvm_authority = renvm.address();
 
     // Initialize client.
@@ -293,7 +295,7 @@ pub extern "C" fn gateway_mint(
     );
     let associated_token_account = get_associated_token_address(&payer.pubkey(), &token_mint_id);
 
-    // Construct RenVM mint message and sign it.
+    // Construct RenVm mint message and sign it.
     let phash_slice = unsafe {
         std::slice::from_raw_parts(phash_pointer as *const u8, 32)
     };
@@ -304,9 +306,12 @@ pub extern "C" fn gateway_mint(
     let mut nhash = [0u8; 32usize];
     &phash[..32].clone_from_slice(phash_slice);
     &nhash[..32].clone_from_slice(nhash_slice);
-    
+
+    let u256_amount = U256::from(amount);
+    let mut amount_bytes = [0u8; 32];
+    u256_amount.to_big_endian(&mut amount_bytes);
     let renvm_mint_msg = RenVmMsgBuilder::default()
-        .amount(amount)
+        .amount(amount_bytes)
         .to(associated_token_account.to_bytes())
         .s_hash(selector_hash)
         .p_hash(phash)
@@ -336,7 +341,7 @@ pub extern "C" fn gateway_mint(
                 sig_s,
                 u8::from_le_bytes(*sig_v),
                 &util::encode_msg(
-                    renvm_mint_msg.amount,
+                    &renvm_mint_msg.amount,
                     &renvm_mint_msg.s_hash,
                     &renvm_mint_msg.to,
                     &renvm_mint_msg.p_hash,
