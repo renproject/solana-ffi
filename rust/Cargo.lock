@@ -2295,7 +2295,7 @@ dependencies = [
 [[package]]
 name = "renvm-gateway"
 version = "0.1.4"
-source = "git+https://github.com/renproject/ren-solana?branch=master#114199fb15fd27552f53b863322fe4a572f40685"
+source = "git+https://github.com/renproject/ren-solana?branch=master#1e64561a0998d56064fa85ccae79198cb0dfb089"
 dependencies = [
  "arrayref",
  "const_format",
