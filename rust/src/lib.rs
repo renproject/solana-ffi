@@ -26,7 +26,22 @@ use std::{
 
 mod util;
 
-const DEFAULT_DECIMALS: u8 = 8u8;
+fn decimals(selector: &str) -> u8 {
+    match selector {
+        "BTC/toSolana" => 8,
+        "BCH/toSolana" => 8,
+        "DGB/toSolana" => 8,
+        "DOGE/toSolana" => 8,
+        "FIL/toSolana" => 18,
+        "LUNA/toSolana" => 6,
+        "ZEC/toSolana" => 8,
+        "DAI/toSolana" => 18,
+        _ => {
+            eprintln!("unsupported selector: {}", selector);
+            exit(1);
+        }
+    }
+}
 
 fn selector_to_program_id(selector: &str) -> Pubkey {
     match selector {
@@ -164,8 +179,8 @@ pub extern "C" fn gateway_initialize(
             &token_mint_id,
             &spl_token::id(),
             selector_hash,
-            DEFAULT_DECIMALS,
-            DEFAULT_DECIMALS,
+            decimals(&selector),
+            decimals(&selector),
         )
         .unwrap()],
         Some(&payer.pubkey()),
@@ -439,7 +454,7 @@ pub extern "C" fn gateway_burn(
                 &payer.pubkey(),
                 &[],
                 burn_amount,
-                DEFAULT_DECIMALS,
+                decimals(&selector),
             )
             .unwrap(),
             burn(
