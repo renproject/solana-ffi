@@ -92,6 +92,11 @@ pub fn encode_msg(
         to: *to,
         n_hash: *n_hash,
     };
+    println!("p hash = {:?}", p_hash.clone());
+    println!("amount = {:?}", U256::from_big_endian(&amount[..]).clone());
+    println!("selector_hash = {:?}", shash.clone());
+    println!("to = {:?}", to.clone());
+    println!("n_hash = {:?}", n_hash.clone());
     msg.pack_into_slice(encoded_msg.as_mut_slice());
     encoded_msg
 }
