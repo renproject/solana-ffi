@@ -85,15 +85,16 @@ pub fn encode_msg(
     n_hash: &[u8; 32],
 ) -> Vec<u8> {
     let mut encoded_msg = vec![0u8; RENVM_MINT_MESSAGE_SIZE];
+    let amount = U256::from_big_endian(&amount[..]);
     let msg = RenVmMintMessage {
         p_hash: *p_hash,
-        amount: U256::from_big_endian(&amount[..]),
+        amount: amount,
         selector_hash: *shash,
         to: *to,
         n_hash: *n_hash,
     };
     println!("p hash = {:?}", p_hash.clone());
-    println!("amount = {:?}", U256::from_big_endian(&amount[..]).clone());
+    println!("amount = {:?}", amount);
     println!("selector_hash = {:?}", shash.clone());
     println!("to = {:?}", to.clone());
     println!("n_hash = {:?}", n_hash.clone());
