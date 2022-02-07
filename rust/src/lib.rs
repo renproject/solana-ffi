@@ -325,6 +325,7 @@ pub extern "C" fn gateway_mint(
     // Derived address that will be the token mint.
     let (gateway_account_id, _) =
         Pubkey::find_program_address(&[GATEWAY_STATE_CURRENT_SEED.as_bytes()], &program_id);
+    dbg!(gateway_account_id.clone());
     let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &program_id);
     let (mint_authority_id, _) =
         Pubkey::find_program_address(&[&token_mint_id.to_bytes()], &program_id);
