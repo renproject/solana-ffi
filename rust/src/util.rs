@@ -67,6 +67,7 @@ pub fn mint_secp_instruction(
     };
     let writer = std::io::Cursor::new(&mut instruction_data[1..data_start]);
     bincode::serialize_into(writer, &offsets).unwrap();
+    dbg!(instruction_data.clone());
 
     Instruction {
         program_id: solana_sdk::secp256k1_program::id(),
