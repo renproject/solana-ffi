@@ -67,7 +67,6 @@ pub fn mint_secp_instruction(
     };
     let writer = std::io::Cursor::new(&mut instruction_data[1..data_start]);
     bincode::serialize_into(writer, &offsets).unwrap();
-    dbg!(instruction_data.clone());
 
     Instruction {
         program_id: solana_sdk::secp256k1_program::id(),
@@ -93,11 +92,6 @@ pub fn encode_msg(
         to: *to,
         n_hash: *n_hash,
     };
-    println!("p hash = {:?}", p_hash.clone());
-    println!("amount = {:?}", amount);
-    println!("selector_hash = {:?}", shash.clone());
-    println!("to = {:?}", to.clone());
-    println!("n_hash = {:?}", n_hash.clone());
     msg.pack_into_slice(encoded_msg.as_mut_slice());
     encoded_msg
 }
