@@ -20,12 +20,45 @@ use spl_math::uint::U256;
 use spl_token::instruction::burn_checked;
 use std::{
     ffi::{CStr, CString},
+    process::exit,
     str::FromStr,
 };
 
 mod util;
 
-const DEFAULT_DECIMALS: u8 = 8u8;
+fn decimals(selector: &str) -> u8 {
+    match selector {
+        "BTC/toSolana" => 8,
+        "BCH/toSolana" => 8,
+        "DGB/toSolana" => 8,
+        "DOGE/toSolana" => 8,
+        "FIL/toSolana" => 18,
+        "LUNA/toSolana" => 6,
+        "ZEC/toSolana" => 8,
+        "DAI/toSolana" => 18,
+        _ => {
+            eprintln!("unsupported selector: {}", selector);
+            exit(1);
+        }
+    }
+}
+
+fn selector_to_program_id(selector: &str) -> Pubkey {
+    match selector {
+        "BTC/toSolana" => gateway::program_ids::bitcoin(),
+        "BCH/toSolana" => gateway::program_ids::bitcoincash(),
+        "DGB/toSolana" => gateway::program_ids::digibyte(),
+        "DOGE/toSolana" => gateway::program_ids::dogecoin(),
+        "FIL/toSolana" => gateway::program_ids::filecoin(),
+        "LUNA/toSolana" => gateway::program_ids::terra(),
+        "ZEC/toSolana" => gateway::program_ids::zcash(),
+        "DAI/toSolana" => gateway::program_ids::dai(),
+        _ => {
+            eprintln!("unsupported selector: {}", selector);
+            exit(1);
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn unique_pubkey() -> *const libc::c_char {
@@ -127,28 +160,27 @@ pub extern "C" fn gateway_initialize(
     hasher.update(selector.as_bytes());
     let selector_hash: [u8; 32] = hasher.finalize().into();
 
+    let program_id = selector_to_program_id(&selector);
+
     // Find derived address that will hold Gateway's state.
-    let (gateway_account_id, _) = Pubkey::find_program_address(
-        &[GATEWAY_STATE_CURRENT_SEED.as_bytes()],
-        &gateway::program_ids::bitcoin(),
-    );
+    let (gateway_account_id, _) =
+        Pubkey::find_program_address(&[GATEWAY_STATE_CURRENT_SEED.as_bytes()], &program_id);
 
     // Derived address that will be the token mint.
-    let (token_mint_id, _) =
-        Pubkey::find_program_address(&[&selector_hash[..]], &gateway::program_ids::bitcoin());
+    let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &program_id);
 
     // Build and sign the initialize transaction.
     let mut tx = Transaction::new_with_payer(
         &[initialize(
-            &gateway::program_ids::bitcoin(),
+            &program_id,
             &payer.pubkey(),
             &gateway_account_id,
             authority,
             &token_mint_id,
             &spl_token::id(),
             selector_hash,
-            DEFAULT_DECIMALS,
-            DEFAULT_DECIMALS,
+            decimals(&selector),
+            decimals(&selector),
         )
         .unwrap()],
         Some(&payer.pubkey()),
@@ -197,9 +229,10 @@ pub extern "C" fn gateway_initialize_account(
     hasher.update(selector.as_bytes());
     let selector_hash: [u8; 32] = hasher.finalize().into();
 
+    let program_id = selector_to_program_id(&selector);
+
     // Derived address that will be the token mint.
-    let (token_mint_id, _) =
-        Pubkey::find_program_address(&[&selector_hash[..]], &gateway::program_ids::bitcoin());
+    let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &program_id);
 
     // Build and sign transaction.
     let mut tx = Transaction::new_with_payer(
@@ -227,17 +260,22 @@ pub extern "C" fn gateway_initialize_account(
 }
 
 #[no_mangle]
-pub extern "C" fn gateway_get_burn_count(rpc_url: *const libc::c_char) -> libc::c_ulonglong {
+pub extern "C" fn gateway_get_burn_count(
+    rpc_url: *const libc::c_char,
+    selector: *const libc::c_char,
+) -> libc::c_ulonglong {
     // Initialize client.
     let buf_name = unsafe { CStr::from_ptr(rpc_url).to_bytes() };
     let rpc_url = String::from_utf8(buf_name.to_vec()).unwrap();
     let rpc_client = RpcClient::new(rpc_url);
 
+    let buf_name = unsafe { CStr::from_ptr(selector).to_bytes() };
+    let selector = String::from_utf8(buf_name.to_vec()).unwrap();
+    let program_id = selector_to_program_id(&selector);
+
     // Fetch account data.
-    let (gateway_account_id, _) = Pubkey::find_program_address(
-        &[GATEWAY_STATE_CURRENT_SEED.as_bytes()],
-        &gateway::program_ids::bitcoin(),
-    );
+    let (gateway_account_id, _) =
+        Pubkey::find_program_address(&[GATEWAY_STATE_CURRENT_SEED.as_bytes()], &program_id);
     let gateway_account_data = rpc_client.get_account_data(&gateway_account_id).unwrap();
     let gateway_state = Gateway::unpack_unchecked(&gateway_account_data).unwrap();
 
@@ -282,30 +320,23 @@ pub extern "C" fn gateway_mint(
     hasher.update(selector.as_bytes());
     let selector_hash: [u8; 32] = hasher.finalize().into();
 
+    let program_id = selector_to_program_id(&selector);
+
     // Derived address that will be the token mint.
-    let (gateway_account_id, _) = Pubkey::find_program_address(
-        &[GATEWAY_STATE_CURRENT_SEED.as_bytes()],
-        &gateway::program_ids::bitcoin(),
-    );
-    let (token_mint_id, _) =
-        Pubkey::find_program_address(&[&selector_hash[..]], &gateway::program_ids::bitcoin());
-    let (mint_authority_id, _) = Pubkey::find_program_address(
-        &[&token_mint_id.to_bytes()],
-        &gateway::program_ids::bitcoin(),
-    );
+    let (gateway_account_id, _) =
+        Pubkey::find_program_address(&[GATEWAY_STATE_CURRENT_SEED.as_bytes()], &program_id);
+    let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &program_id);
+    let (mint_authority_id, _) =
+        Pubkey::find_program_address(&[&token_mint_id.to_bytes()], &program_id);
     let associated_token_account = get_associated_token_address(&payer.pubkey(), &token_mint_id);
 
     // Construct RenVm mint message and sign it.
-    let phash_slice = unsafe {
-        std::slice::from_raw_parts(phash_pointer as *const u8, 32)
-    };
-    let nhash_slice = unsafe {
-        std::slice::from_raw_parts(nhash_pointer as *const u8, 32)
-    };
+    let phash_slice = unsafe { std::slice::from_raw_parts(phash_pointer as *const u8, 32) };
+    let nhash_slice = unsafe { std::slice::from_raw_parts(nhash_pointer as *const u8, 32) };
     let mut phash = [0u8; 32usize];
     let mut nhash = [0u8; 32usize];
-    &phash[..32].clone_from_slice(phash_slice);
-    &nhash[..32].clone_from_slice(nhash_slice);
+    phash[..32].clone_from_slice(phash_slice);
+    nhash[..32].clone_from_slice(nhash_slice);
 
     let u256_amount = U256::from(amount);
     let mut amount_bytes = [0u8; 32];
@@ -321,12 +352,11 @@ pub extern "C" fn gateway_mint(
     let msg_hash = renvm_mint_msg.get_digest().unwrap();
     let renvm_sig = renvm.sign(&renvm_mint_msg).unwrap();
     let (sig_r, sig_s, sig_v) = array_refs![&renvm_sig, 32, 32, 1];
-    let (mint_log_account_id, _) =
-        Pubkey::find_program_address(&[&msg_hash[..]], &gateway::program_ids::bitcoin());
+    let (mint_log_account_id, _) = Pubkey::find_program_address(&[&msg_hash[..]], &program_id);
     let mut tx = Transaction::new_with_payer(
         &[
             mint(
-                &gateway::program_ids::bitcoin(),
+                &program_id,
                 &payer.pubkey(),
                 &gateway_account_id,
                 &token_mint_id,
@@ -400,13 +430,12 @@ pub extern "C" fn gateway_burn(
     hasher.update(selector.as_bytes());
     let selector_hash: [u8; 32] = hasher.finalize().into();
 
+    let program_id = selector_to_program_id(&selector);
+
     // Derived address that will be the token mint.
-    let (gateway_account_id, _) = Pubkey::find_program_address(
-        &[GATEWAY_STATE_CURRENT_SEED.as_bytes()],
-        &gateway::program_ids::bitcoin(),
-    );
-    let (token_mint_id, _) =
-        Pubkey::find_program_address(&[&selector_hash[..]], &gateway::program_ids::bitcoin());
+    let (gateway_account_id, _) =
+        Pubkey::find_program_address(&[GATEWAY_STATE_CURRENT_SEED.as_bytes()], &program_id);
+    let (token_mint_id, _) = Pubkey::find_program_address(&[&selector_hash[..]], &program_id);
     let associated_token_account = get_associated_token_address(&payer.pubkey(), &token_mint_id);
 
     // Construct the 25-bytes address of release recipient of the underlying assets.
@@ -414,10 +443,8 @@ pub extern "C" fn gateway_burn(
         std::slice::from_raw_parts(recipient_pointer as *const u8, recipient_len as usize)
     };
 
-    let (burn_log_account_id, _) = Pubkey::find_program_address(
-        &[&burn_count.to_le_bytes()[..]],
-        &gateway::program_ids::bitcoin(),
-    );
+    let (burn_log_account_id, _) =
+        Pubkey::find_program_address(&[&burn_count.to_le_bytes()[..]], &program_id);
     let mut tx = Transaction::new_with_payer(
         &[
             burn_checked(
@@ -427,11 +454,11 @@ pub extern "C" fn gateway_burn(
                 &payer.pubkey(),
                 &[],
                 burn_amount,
-                DEFAULT_DECIMALS,
+                decimals(&selector),
             )
             .unwrap(),
             burn(
-                &gateway::program_ids::bitcoin(),
+                &program_id,
                 &payer.pubkey(),
                 &associated_token_account,
                 &gateway_account_id,
