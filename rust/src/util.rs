@@ -87,7 +87,7 @@ pub fn encode_msg(
     let amount = U256::from_big_endian(&amount[..]);
     let msg = RenVmMintMessage {
         p_hash: *p_hash,
-        amount: amount,
+        amount,
         selector_hash: *shash,
         to: *to,
         n_hash: *n_hash,
